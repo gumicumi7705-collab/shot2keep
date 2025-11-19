@@ -1,7 +1,7 @@
 plugins {
-   id "com.android.application"
-   id "kotlin-android"
-   id "dev.flutter.flutter-gradle-plugin"
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
 }
 
 def localProperties = new Properties()
@@ -22,6 +22,7 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// --- opcionális helyi key.properties támogatás ---
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
@@ -31,7 +32,6 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "com.mycompany.shot2keep"
     compileSdkVersion 35
-    
 
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -53,7 +53,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.mycompany.shot2keep"
         minSdkVersion 23
         targetSdkVersion 35
@@ -61,19 +60,28 @@ android {
         versionName flutterVersionName
     }
 
-   signingConfigs {
-       release {
-           keyAlias keystoreProperties['keyAlias']
-           keyPassword keystoreProperties['keyPassword']
-           storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-           storePassword keystoreProperties['storePassword']
-       }
-   }
+    signingConfigs {
+        release {
+            // Elsőként Codemagic env változók (CI buildhez)
+            if (System.getenv("CM_KEYSTORE_PATH")) {
+                storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
+            }
+            // Ha nincs Codemagic env, akkor próbálja a helyi key.properties-t
+            else if (keystoreProperties['storeFile']) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Itt már NEM a debug kulccsal írunk alá, hanem a fenti release configgal
             signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -88,3 +96,4 @@ dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0"
 }
+
