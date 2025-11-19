@@ -1,104 +1,48 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-}
-
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
     }
 }
 
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
+rootProject.buildDir = '../build'
 
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
-}
-
-/**
- * Keystore beállítás:
- * 1) Codemagic esetén a CM_* environment változókból olvasunk
- * 2) Ha ezek nincsenek, akkor a helyi key.properties fájlból
- */
-def keystoreProperties = new Properties()
-if (System.getenv("CM_KEYSTORE_PATH")) {
-    // Codemagic által beállított env változók
-    keystoreProperties['storeFile']      = System.getenv("CM_KEYSTORE_PATH")
-    keystoreProperties['storePassword']  = System.getenv("CM_KEYSTORE_PASSWORD")
-    keystoreProperties['keyAlias']       = System.getenv("CM_KEY_ALIAS")
-    keystoreProperties['keyPassword']    = System.getenv("CM_KEY_PASSWORD")
-} else {
-    // Helyi build esetén key.properties
-    def keystorePropertiesFile = rootProject.file('key.properties')
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-    }
-}
-
-android {
-    namespace "com.mycompany.shot2keep"
-    compileSdkVersion 35
-
-    compileOptions {
-        coreLibraryDesugaringEnabled true
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
-    lintOptions {
-        disable 'InvalidPackage'
-        checkReleaseBuilds false
-    }
-
-    defaultConfig {
-        applicationId "com.mycompany.shot2keep"
-        minSdkVersion 23
-        targetSdkVersion 35
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
-    }
-
-    signingConfigs {
-        release {
-            // csak akkor állítjuk, ha tényleg van érték
-            if (keystoreProperties['storeFile']) {
-                storeFile file(keystoreProperties['storeFile'])
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("kotlin")) {
+            project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+                kotlinOptions {
+                    jvmTarget = "1.8"
+                }
             }
-            storePassword keystoreProperties['storePassword']
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-        }
-    }
-
-    buildTypes {
-        release {
-            // Itt KÉNYSZERÍTJÜK, hogy a release kulcsot használja
-            signingConfig signingConfigs.release
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
 
-flutter {
-    source '../..'
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.application") ||
+                project.plugins.hasPlugin("com.android.library")) {
+            project.android {
+                compileSdkVersion 35
+            }
+        }
+        if (project.hasProperty('android')) {
+                project.android {
+                    if (namespace == null) {
+                        namespace project.group
+                    }
+                }
+            }
+    }
+}
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
 }
 
-dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0"
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
